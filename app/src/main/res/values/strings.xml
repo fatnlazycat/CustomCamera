@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">MyCustomCamera</string>
+    <string name="Yes">Так</string>
+    <string name="No">Ні</string>
+    <string name="media_format_not_supported">Цей формат не підтримується</string>
+    <string name="fileLimitReached">Досягнуто максимальний розмір файлу</string>
+</resources>
