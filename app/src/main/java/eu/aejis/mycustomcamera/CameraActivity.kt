@@ -5,18 +5,33 @@ import android.content.Intent
 import android.graphics.PorterDuff
 import android.net.Uri
 import android.os.Bundle
-import android.os.PersistableBundle
 import android.os.SystemClock
 import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
+import android.view.Gravity
 import android.view.View
 import android.widget.*
 import com.github.glomadrian.materialanimatedswitch.MaterialAnimatedSwitch
+import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
 
 open class CameraActivity : AppCompatActivity(), CameraHost {
     val TAG = "CameraActivity"
+
+    val picasso: Picasso by lazy {
+        val builder = Picasso.Builder(this)
+        builder.listener(object : Picasso.Listener {
+            override fun onImageLoadFailed(picasso: Picasso, uri: Uri, exception: Exception) {
+                Log.d(TAG, exception.message)
+
+                val tvError = findViewById(R.id.tvError) as TextView
+                tvError.visibility = View.VISIBLE
+                tvError.text = exception.toString()
+            }
+        })
+        builder.build()
+    }
 
     override var mPreview: CameraPreview? = null
 
@@ -43,6 +58,11 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
         } else {
             // Create our Preview view and set it as the content of our activity.
             mPreview = CameraPreview(this)
+
+            val layoutParams = mPreview?.layoutParams as FrameLayout.LayoutParams
+            layoutParams.gravity = Gravity.CENTER
+            mPreview?.layoutParams = layoutParams
+
             val preview = findViewById(R.id.camera_preview) as FrameLayout
             preview.addView(mPreview)
 
@@ -129,11 +149,13 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
         super.onPause()
     }
     fun onPauseActions() {
+        Log.d(TAG, "onPause")
         customCamera?.onPauseActions()
         mPreview?.visibility = View.GONE
     }
 
     override fun onDestroy() {
+        Log.d(TAG, "onDestroy")
         customCamera = null
         super.onDestroy()
     }
@@ -144,13 +166,13 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
     }
 
     override fun setRecordButtonStatus(status: Boolean) {
+        switchPhotoVideo?.   visibility = View.GONE
+
         if (status) { //recording - show "Stop"
             btnCapture?.setColorFilter(
                     ContextCompat.getColor(this, android.R.color.holo_red_light),
                     PorterDuff.Mode.MULTIPLY
             )
-            switchPhotoVideo?.   visibility = View.GONE
-
             chronometer?. let { with(it) {
                 visibility = View.VISIBLE
                 base = SystemClock.elapsedRealtime()
@@ -177,24 +199,18 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
             else FILE_PREFIX + mediaFileName
 
         if (mediaFileName.endsWith(CustomCamera.JPG)) {
-            ivResult?.visibility = View.VISIBLE
+            ivResult ?. let { imageView ->
+                imageView.visibility = View.VISIBLE
+                val screenSize = Utils.getScreenSizes(this)
 
-             val builder = Picasso.Builder(this)
-            builder.listener(object : Picasso.Listener
-            {
-                override fun onImageLoadFailed(picasso: Picasso, uri: Uri, exception: Exception)
-                {
-                    Log.d(TAG, exception.message)
-                }
-            })
-
-            builder.build().
-
-            /*Picasso.with(this).*/
-                    load(fileNameWithPrefix).
-                    placeholder(R.mipmap.ic_launcher).
-                    error(R.mipmap.ic_launcher_round).
-                    into(ivResult)
+                picasso.load(fileNameWithPrefix)
+                        .placeholder(R.mipmap.ic_launcher)
+                        .error(R.mipmap.ic_launcher_round)
+                        .memoryPolicy(MemoryPolicy.NO_CACHE)
+                        .resize(screenSize.x, screenSize.y)
+                        .centerInside()
+                        .into(ivResult)
+            }
 
         } else if (mediaFileName.endsWith(CustomCamera.MP4)) {
             val mc = MediaController(this)

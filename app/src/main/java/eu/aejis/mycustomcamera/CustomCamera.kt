@@ -38,6 +38,11 @@ class CustomCamera (
 
 
     var mCamera: Camera? = null
+
+    val cameraParameters: Camera.Parameters? by lazy {
+        mCamera?.parameters
+    }
+
     var mMediaRecorder: MediaRecorder? = null
     private var actionImage = true
     var isRecording = false
@@ -54,6 +59,8 @@ class CustomCamera (
             // % 360 - to switch from 360 to 0
         })
     }
+
+    var autoFocusInProgress = false
 
     var useSensor = false
     var sensorInitialized = false
@@ -73,13 +80,18 @@ class CustomCamera (
 
     init {
         initCamera()
-        ctx.mPreview?.init(this, mCamera?.parameters?.supportedPreviewSizes)
+
+        cameraParameters ?. let {cameraParameters ->
+            ctx.mPreview?.init(this,
+                    cameraParameters,
+                    Utils.getCameraInfo(DEFAULT_CAMERA_ID).orientation)
+        }
+
         actionImage = when (action) {
             MediaStore.ACTION_IMAGE_CAPTURE -> true
             MediaStore.ACTION_VIDEO_CAPTURE -> false
             else                            -> true
         }
-        initMode(modeVideo = !actionImage)
     }
 
     fun initCamera() {
@@ -129,7 +141,6 @@ class CustomCamera (
             }
 
             releaseMediaRecorder() // release the MediaRecorder object
-            mCamera?.lock()        // take camera access back from MediaRecorder
 
             orientationListener.enable()
 
@@ -140,22 +151,24 @@ class CustomCamera (
     }
 
     fun initMode(modeVideo: Boolean) {
-        val parameters = mCamera?.parameters
-        parameters?.let {
+        ctx.setPreviewMode(modeVideo)
+        cameraParameters?.let {parameters ->
             if (modeVideo) { //video
                 if (parameters.supportedFocusModes != null
                         && parameters.supportedFocusModes.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO)) {
                     parameters.focusMode = Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO
                 }
             } else { //image
-                val displaySize = Point()
-                ctx.asActivity().windowManager.defaultDisplay.getSize(displaySize)
-
+                //don't need this block because pictureSize is being set in CameraPreview.onMeasure()
+                /*val previewSize = ctx.mPreview?.bestFitPreviewSize
                 val supportedPictureSizes = parameters.supportedPictureSizes
-                val bestPictureSize = Utils.getOptimalCameraSize(supportedPictureSizes, displaySize.x, displaySize.y)
-                bestPictureSize?.let {
-                    parameters.setPictureSize(bestPictureSize.width, bestPictureSize.height)
-                }
+                previewSize ?. let {
+                    val bestPictureSize = Utils.getOptimalPictureSize(supportedPictureSizes, previewSize.width, previewSize.height)
+                    bestPictureSize?.let {
+                        parameters.setPictureSize(bestPictureSize.width, bestPictureSize.height)
+                        //parameters.setPictureSize(640, 480)
+                    }
+                }*/
 
                 if (parameters.supportedFocusModes.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE)) {
                     parameters.focusMode = Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE
@@ -165,7 +178,7 @@ class CustomCamera (
                 parameters.setRotation(mediaOrientation)
             }
         }
-        mCamera?.parameters = parameters
+        mCamera?.parameters = cameraParameters
     }
 
     fun getActionListener(): View.OnClickListener {
@@ -185,7 +198,7 @@ class CustomCamera (
             val parameters = mCamera?.parameters
             parameters ?. let {
                 val supportedPictureSizes = parameters.supportedPictureSizes
-                val bestPictureSize = Utils.getOptimalCameraSize(supportedPictureSizes, displaySize.x, displaySize.y)
+                val bestPictureSize = Utils.getOptimalPictureSize(supportedPictureSizes, displaySize.x, displaySize.y)
                 bestPictureSize?. let {
                     parameters.setPictureSize(bestPictureSize.width, bestPictureSize.height)
                 }
@@ -199,9 +212,8 @@ class CustomCamera (
                 mCamera?.parameters = parameters
             }*/
 
-            val parameters = mCamera?.parameters
-            parameters?.setRotation(mediaOrientation)
-            mCamera?.parameters = parameters
+            cameraParameters?.setRotation(mediaOrientation)
+            mCamera?.parameters = cameraParameters
 
             // get an image from the camera
             mCamera?.takePicture(null, null, pictureCallback)
@@ -264,13 +276,13 @@ class CustomCamera (
             mediaRecorder.setOnErrorListener(this)
 
             //call this before unlocking the camera
-            fun getBestVideoSize(): Camera.Size? {
+            /*fun getBestVideoSize(): Camera.Size? {
                 val displaySize = Point()
                 ctx.asActivity().windowManager.defaultDisplay.getSize(displaySize)
-                val result = Utils.getAcceptableVideoSize(getSupportedVideoSizes(camera), displaySize.x, displaySize.y)
+                val result = Utils.getOptimalCameraSizesForVideo(getSupportedVideoSizes(camera), displaySize.x, displaySize.y)
                 return result
             }
-            val videoSize = getBestVideoSize()
+            val videoSize = getBestVideoSize()*/
 
             //this block is duplicated in initMode()
             /*val parameters = camera.parameters
@@ -281,16 +293,23 @@ class CustomCamera (
             camera.parameters = parameters*/
 
             // Step 1: Unlock and set camera to MediaRecorder
+            camera.stopPreview()
             camera.unlock()
             mediaRecorder.setCamera(camera)
 
             // Step 2: Set sources
             mediaRecorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER)
+            //mediaRecorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT)
             mediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA)
+            //mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT)
+            //mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT)
+            //mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.DEFAULT)
 
             // Step 3: Set a CamcorderProfile (requires API Level 8 or higher) + override video size
             mediaRecorder.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH))
-            if (videoSize != null) mediaRecorder.setVideoSize(videoSize.width, videoSize.height)
+
+            val videoSize = Utils.stringToPoint(cameraParameters?.get(IntentExtras.VIDEO_SIZE))
+            videoSize?. let {mediaRecorder.setVideoSize(videoSize.x, videoSize.y)}
 
             // Step 4: Set output file
             //lastCapturedFile = Utils.getMediaFile(ctx, MediaStore.ACTION_VIDEO_CAPTURE)
@@ -302,7 +321,7 @@ class CustomCamera (
 
             mediaRecorder.setOutputFile(lastCapturedFile.toString())
             mediaRecorder.setMaxFileSize(99 * 1024 * 1024) //99Mb
-            mediaRecorder.setMaxDuration(2000)
+            //mediaRecorder.setMaxDuration(2000)
 
             // Step 5: Set the preview output
             mediaRecorder.setPreviewDisplay(ctx.mPreview?.holder?.surface)
@@ -336,7 +355,9 @@ class CustomCamera (
         mMediaRecorder?.reset()   // clear recorder configuration
         mMediaRecorder?.release() // release the recorder object
         mMediaRecorder = null
+
         mCamera?.lock()           // lock camera for later use
+        mCamera?.startPreview()
     }
 
     fun releaseAll() {
@@ -348,6 +369,9 @@ class CustomCamera (
 
 
     override fun surfaceCreated(holder: SurfaceHolder) {
+        //we need it here so that the layout is complete
+        initMode(modeVideo = !actionImage)
+
         // The Surface has been created, now tell the camera where to draw the preview.
         try {
             mCamera?.let {camera ->
@@ -382,7 +406,13 @@ class CustomCamera (
             // set preview size and make any resize, rotate or
             // reformatting changes here
             //val display = (context.getSystemService(WINDOW_SERVICE) as WindowManager).defaultDisplay
-            val parameters = camera.parameters
+            /*val previewSize = ctx.mPreview?.bestFitPreviewSize
+            previewSize ?. let {
+                cameraParameters?.setPreviewSize(it.width, it.height)
+                //parameters.setPreviewSize(640, 480)
+                Log.d(TAG, "preview size= ${it.width}x${it.height}")
+            }*/
+
 
 /*tag1            val h = ctx.mPreview?.bestFitPreviewSize?.height  ?: height
             val w = ctx.mPreview?.bestFitPreviewSize?.width   ?: width
@@ -416,7 +446,7 @@ class CustomCamera (
             // start preview with new settings
             try {
                 camera.setDisplayOrientation(previewOrientation)
-                camera.parameters = parameters
+                camera.parameters = cameraParameters
 
                 /**/
                 /*camera.setDisplayOrientation(90)
@@ -450,6 +480,8 @@ class CustomCamera (
     }
 
     override fun onSensorChanged(event: SensorEvent) {
+        val SENSOR_THRESHOLD = .6
+
         val x = event.values[0]
         val y = event.values[1]
         val z = event.values[2]
@@ -463,7 +495,8 @@ class CustomCamera (
         val deltaY = Math.abs(sensorLastY - y)
         val deltaZ = Math.abs(sensorLastZ - z)
 
-        if (deltaX > .5 || deltaY > .5 || deltaZ > .5) {
+        if (!autoFocusInProgress
+                && (deltaX > SENSOR_THRESHOLD || deltaY > SENSOR_THRESHOLD || deltaZ > SENSOR_THRESHOLD)) {
             doAutoFocus()
         }
 
@@ -474,7 +507,10 @@ class CustomCamera (
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) { }
 
     fun doAutoFocus() {
-        mCamera?.autoFocus(null)
+        autoFocusInProgress = true
+        mCamera?.autoFocus({ _, _ ->
+            autoFocusInProgress = false
+        })
     }
 
     override fun onInfo(mr: MediaRecorder?, what: Int, extra: Int) {

@@ -1,58 +1,87 @@
 package eu.aejis.mycustomcamera
 
-import android.content.ContentValues.TAG
 import android.content.Context
-import android.content.Context.WINDOW_SERVICE
 import android.hardware.Camera
-import android.hardware.Camera.Size
-import android.util.Log
-import android.view.*
-import java.io.IOException
-import android.view.Surface.ROTATION_270
-import android.view.Surface.ROTATION_180
-import android.view.Surface.ROTATION_90
-import android.view.Surface.ROTATION_0
-import android.support.v4.view.ViewCompat.getRotation
-import android.app.Activity
-
-
+import android.view.SurfaceHolder
+import android.view.SurfaceView
+import android.view.View
 
 
 /** A basic Camera preview class  */
 class CameraPreview(context: Context) : SurfaceView(context) {
-    var mSupportedPreviewSizes: List<Camera.Size>? = null
-    var bestFitPreviewSize: Camera.Size? = null
+    lateinit var cameraParameters: Camera.Parameters
+    //var bestFitPreviewSize: Camera.Size? = null
+    var cameraOrientation: Int = 0
     private val mHolder: SurfaceHolder = holder
+    var videoMode = false
 
-    fun init(c: SurfaceHolder.Callback, supportedPreviewSizes: List<Camera.Size>?) {
+    fun init(c: SurfaceHolder.Callback, cameraParams: Camera.Parameters, orientation: Int) {
         // Install a SurfaceHolder.Callback so we get notified when the
         // underlying surface is created and destroyed.
         mHolder.addCallback(c)
         // deprecated setting, but required on Android versions prior to 3.0
         mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS)
 
-        mSupportedPreviewSizes = supportedPreviewSizes
+        cameraParameters = cameraParams
+        cameraOrientation = orientation
     }
 
-    /*override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = View.resolveSize(suggestedMinimumWidth, widthMeasureSpec)
         val height = View.resolveSize(suggestedMinimumHeight, heightMeasureSpec)
+        var newWidth = width
+		var newHeight = height
 
-        if (mSupportedPreviewSizes != null) {
-            bestFitPreviewSize = Utils.getOptimalCameraSize(mSupportedPreviewSizes, width, height)
+        val supportedPreviewSizes = cameraParameters.supportedPreviewSizes
+
+        val (bestFitPreviewSize, bestFitPictureSize) = if (videoMode) {
+            val supportedPictureSizes = getSupportedVideoSizes()
+            Utils.getOptimalCameraSizesForVideo(supportedPreviewSizes, supportedPictureSizes, width, height)
+        } else {
+            val supportedPictureSizes = cameraParameters.supportedPictureSizes
+            Utils.getOptimalCameraSizesForImage(supportedPreviewSizes, supportedPictureSizes, width, height)
+        }
+
+        bestFitPictureSize?.let {pictureSize ->
+            if (videoMode) cameraParameters.set(IntentExtras.VIDEO_SIZE, Utils.cameraSizeToString(pictureSize))
+            else cameraParameters.setPictureSize(pictureSize.width, pictureSize.height)
         }
 
         bestFitPreviewSize?.let { previewSize ->
-            *//*val ratio: Float
-            if (previewSize.height >= previewSize.width)
-                ratio = previewSize.height.toFloat() / previewSize.width.toFloat()
-            else
-                ratio = previewSize.width.toFloat() / previewSize.height.toFloat()
+            cameraParameters.setPreviewSize(previewSize.width, previewSize.height)
 
-            // One of these methods should be used, second method squishes preview slightly
-            setMeasuredDimension(width, (width * ratio).toInt())
-            //        setMeasuredDimension((int) (width * ratio), height);*//*
-            setMeasuredDimension(previewSize.width, previewSize.height)
+            val biggerPreviewSide = Math.max(previewSize.height, previewSize.width)
+            val smallerPreviewSide = Math.min(previewSize.height, previewSize.width)
+
+            val ratio: Float = biggerPreviewSide.toFloat() / smallerPreviewSide.toFloat()
+
+            val biggerDimension = Math.max(width, height)
+            val smallerDimension = Math.min(width, height)
+
+            val biggerDimensionScaled = Math.min((smallerDimension * ratio).toInt(), biggerDimension)
+            val smallerDimensionScaled = (biggerDimensionScaled / ratio).toInt()
+
+            if (width == biggerDimension) {
+                newWidth = biggerDimensionScaled
+                newHeight = smallerDimensionScaled
+            } else {
+                newWidth = smallerDimensionScaled
+                newHeight = biggerDimensionScaled
+            }
         }
-    }*/
+        setMeasuredDimension(newWidth, newHeight)
+        //setMeasuredDimension(480, 640)
+
+        /*when (cameraOrientation) {
+            0, 180  -> setMeasuredDimension(newWidth, newHeight)
+            90, 270 -> setMeasuredDimension(newHeight, newWidth)
+        }*/
+    }
+
+    fun getSupportedVideoSizes(): List<Camera.Size> {
+        val supportedSizes = cameraParameters.supportedVideoSizes
+        // Video sizes may be null, which indicates that all the supported
+        // preview sizes are supported for video recording.
+        return supportedSizes ?: cameraParameters.supportedPreviewSizes
+    }
 }

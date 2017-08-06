@@ -65,4 +65,10 @@
         android:layout_toLeftOf="@id/button_capture"
         android:visibility="gone"
         android:text="@string/No"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/tvError"
+        android:visibility="gone"/>
 </RelativeLayout>

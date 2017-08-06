@@ -3,12 +3,10 @@ package eu.aejis.mycustomcamera
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Point
 import android.hardware.Camera
 import android.net.Uri
 import android.os.Environment
-import java.io.File.separator
-import android.os.Environment.DIRECTORY_PICTURES
-import android.os.Environment.getExternalStoragePublicDirectory
 import android.provider.MediaStore
 import android.util.Log
 import android.view.OrientationEventListener
@@ -72,17 +70,15 @@ object Utils {
     }
 
 
-    fun getCameraDisplayOrientation(activity: Activity,
-                                    cameraId: Int): Int {
-        val info = android.hardware.Camera.CameraInfo()
-        android.hardware.Camera.getCameraInfo(cameraId, info)
+    fun getCameraDisplayOrientation(activity: Activity, cameraId: Int): Int {
+        val info = getCameraInfo(cameraId)
         val displayRotation = activity.windowManager.defaultDisplay.rotation
         var defaultDisplayOrientation = 0
         when (displayRotation) {
-            Surface.ROTATION_0 -> defaultDisplayOrientation = 0
-            Surface.ROTATION_90 -> defaultDisplayOrientation = 90
-            Surface.ROTATION_180 -> defaultDisplayOrientation = 180
-            Surface.ROTATION_270 -> defaultDisplayOrientation = 270
+            Surface.ROTATION_0      -> defaultDisplayOrientation = 0
+            Surface.ROTATION_90     -> defaultDisplayOrientation = 90
+            Surface.ROTATION_180    -> defaultDisplayOrientation = 180
+            Surface.ROTATION_270    -> defaultDisplayOrientation = 270
         }
 
         var result: Int
@@ -93,6 +89,12 @@ object Utils {
             result = (info.orientation - defaultDisplayOrientation + 360) % 360
         }
         return result
+    }
+
+    fun getCameraInfo(cameraId: Int): android.hardware.Camera.CameraInfo {
+        val info = android.hardware.Camera.CameraInfo()
+        android.hardware.Camera.getCameraInfo(cameraId, info)
+        return info
     }
 
     fun getCameraOrientation(cameraId: Int): Int {
@@ -120,39 +122,119 @@ object Utils {
         listener?.disable()
     }
 
-    fun getOptimalCameraSize(sizes: List<Camera.Size>?, w: Int, h: Int): Camera.Size? {
+    fun getRatioDifference(arg1: Camera.Size?, arg2: Camera.Size?): Float {
+        if (arg1 == null || arg2 == null) return 1.0F
+
+        val ratio1 = arg1.height.toFloat() / arg1.width.toFloat()
+        val ratio2 = arg2.height.toFloat() / arg2.width.toFloat()
+        return Math.abs(ratio1 - ratio2)
+    }
+
+    fun getBigSideDifference(arg1: Camera.Size?, arg2: Point?): Int {
+        if (arg1 == null || arg2 == null) return Int.MAX_VALUE
+
+        val biggerSide1 = Math.max(arg1.height, arg1.width)
+        val biggerSide2 = Math.max(arg2.y, arg2.x)
+        return Math.abs(biggerSide1 - biggerSide2)
+    }
+
+    fun getOptimalCameraSizesForImage(previewSizes: List<Camera.Size>, pictureSizes: List<Camera.Size>, w: Int, h: Int):
+            Pair<Camera.Size?, Camera.Size?> {
+
         //Max image size from Bogdanovich
         val BIGGER_SIDE_OF_IMAGE_MAX_SIZE = 1280
 
-        if (sizes == null) return null
+        //height compared to witdh & vice versa intentionally (different formats of returns)
+        val excludeBigPreviewSizes = previewSizes.filter { it.height <= w && it.width <= h }
 
-        val widthToCheck = Math.min(w, BIGGER_SIDE_OF_IMAGE_MAX_SIZE)
-        val heightToCheck = Math.min(h, BIGGER_SIDE_OF_IMAGE_MAX_SIZE)
-        val optimalSize: Camera.Size? = sizes
-                .filter { it.height <= heightToCheck && it.width <= widthToCheck }
-                .minBy { Math.abs(it.height - heightToCheck) }
+        val excludeBigPictureSizes = pictureSizes.filter { Math.max(it.height, it.width) <= BIGGER_SIDE_OF_IMAGE_MAX_SIZE }
 
-        return optimalSize
+        //data class CameraSizeInfo(val previewSize: Camera.Size, val pictureSize: Camera.Size, val ratioDifference: Float )
+
+
+        val bestR = excludeBigPreviewSizes.map { previewSize ->
+            getRatioDifference(previewSize, excludeBigPictureSizes.minBy { getRatioDifference(previewSize, it) })
+        }.min()
+
+        val cameraSizeInfoList = excludeBigPreviewSizes.map { previewSize ->
+            val bestPicSize = excludeBigPictureSizes.sortedBy { picSize ->
+                Math.abs(previewSize.height - picSize.height)
+            }. minBy {
+               getRatioDifference(it, previewSize)
+            }
+            Pair(previewSize, bestPicSize)
+        }.filter { getRatioDifference(it.first, it.second) == bestR }
+
+        var aspectTolerance = 0.0
+
+        //width / height intentionally - see below
+        val targetRatio = w.toFloat() / h.toFloat()
+
+        fun getSizesWithTargetRatio(): List<Camera.Size> {
+
+            //height / width intentionally - see higher (different formats of returns)
+            var result = cameraSizeInfoList
+                    .map {it.first}
+                    .filter {
+                        Math.abs((it.height.toFloat() / it.width.toFloat()) - targetRatio) <= aspectTolerance
+                    }
+            if (result.isEmpty()) {
+                aspectTolerance += 0.05
+                result = getSizesWithTargetRatio()
+            }
+            return result.sortedBy {
+                Math.abs((it.height.toFloat() / it.width.toFloat()) - targetRatio)
+            }
+        }
+
+        val optimalPreviewSize: Camera.Size? = getSizesWithTargetRatio().minBy {
+            getBigSideDifference(it, Point(w, h))
+        }
+        val optimalPictureSize = cameraSizeInfoList.find { it.first == optimalPreviewSize }?.second ?: optimalPreviewSize
+        return Pair(optimalPreviewSize, optimalPictureSize)
     }
 
-    fun getAcceptableVideoSize(sizes: List<Camera.Size>?, w: Int, h: Int): Camera.Size? {
+    fun getOptimalCameraSizesForVideo(previewSizes: List<Camera.Size>, pictureSizes: List<Camera.Size>, w: Int, h: Int):
+            Pair<Camera.Size?, Camera.Size?> {
+
         val ACCEPTABLE_VIDEO_WIDTH = 640
         val ACCEPTABLE_VIDEO_HEIGHT = 480
 
-        if (sizes == null) return null
-
-        val acceptableSizes = sizes.filter {
+        val excludeBigPictureSizes = pictureSizes.filter {
             it.height <= h && it.width <= w &&
                     it.height >= ACCEPTABLE_VIDEO_HEIGHT && it.width >= ACCEPTABLE_VIDEO_WIDTH
         }
 
-        val listToChooseFrom = if (acceptableSizes.none()) sizes else acceptableSizes
-        val optimalSize = listToChooseFrom
+        val listToChooseFrom = if (excludeBigPictureSizes.none()) pictureSizes else excludeBigPictureSizes
+        val optimalPictureSize = listToChooseFrom
                 .sortedBy { Math.abs(it.width - ACCEPTABLE_VIDEO_WIDTH) }
                 .minBy { Math.abs(it.height - ACCEPTABLE_VIDEO_HEIGHT) }
 
+        //height compared to witdh & vice versa intentionally (different formats of returns)
+        val excludeBigPreviewSizes = previewSizes.filter { it.height <= w && it.width <= h }
+        val optimalPreviewSize = excludeBigPreviewSizes
+                .sortedBy { getBigSideDifference(it, Point(w, h)) }
+                .minBy { getRatioDifference(it, optimalPictureSize) }
 
-        return optimalSize
+        return Pair(optimalPreviewSize, optimalPictureSize)
     }
 
+    // returns screen sizes in pixels
+    fun getScreenSizes(ctx: Activity): Point {
+        val display = ctx.windowManager.defaultDisplay
+        val size    = Point()
+        display.getSize(size)
+        return size
+    }
+
+    fun cameraSizeToString(arg: Camera.Size): String {
+        return "" + arg.width + "x" + arg.height
+    }
+    fun stringToPoint(arg: String?): Point? {
+        val r = Regex("\\d+x\\d+")
+        if (arg != null && arg.matches(r)) {
+            val list = arg.split("x")
+            return Point(list.component1().toInt(), list.component2().toInt())
+        } else return null /*throw IllegalArgumentException("arg of stringToPoint(arg: String) should be in format '\\d+x\\d+'")*/
+    }
 }

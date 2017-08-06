@@ -9,6 +9,11 @@ import java.io.File
 interface CameraHost {
     var mPreview: CameraPreview?
 
+    fun setPreviewMode(modeVideo: Boolean) {
+        mPreview?.videoMode = modeVideo
+        mPreview?.requestLayout()
+    }
+
     fun setRecordButtonStatus(status: Boolean)
 
     fun showResult(mediaFileName: String)
