@@ -2,6 +2,7 @@ package eu.aejis.mycustomcamera
 
 import android.content.Context
 import android.hardware.Camera
+import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
@@ -9,6 +10,7 @@ import android.view.View
 
 /** A basic Camera preview class  */
 class CameraPreview(context: Context) : SurfaceView(context) {
+    val TAG = "CameraPreview"
     lateinit var cameraParameters: Camera.Parameters
     //var bestFitPreviewSize: Camera.Size? = null
     var cameraOrientation: Int = 0
@@ -41,6 +43,9 @@ class CameraPreview(context: Context) : SurfaceView(context) {
             val supportedPictureSizes = cameraParameters.supportedPictureSizes
             Utils.getOptimalCameraSizesForImage(supportedPreviewSizes, supportedPictureSizes, width, height)
         }
+
+        Log.d(TAG, "bestFitPreviewSize=${bestFitPreviewSize?.height}x${bestFitPreviewSize?.width}")
+        Log.d(TAG, "bestFitPictureSize=${bestFitPictureSize?.height}x${bestFitPictureSize?.width}")
 
         bestFitPictureSize?.let {pictureSize ->
             if (videoMode) cameraParameters.set(IntentExtras.VIDEO_SIZE, Utils.cameraSizeToString(pictureSize))
@@ -78,7 +83,7 @@ class CameraPreview(context: Context) : SurfaceView(context) {
         }*/
     }
 
-    fun getSupportedVideoSizes(): List<Camera.Size> {
+    private fun getSupportedVideoSizes(): List<Camera.Size> {
         val supportedSizes = cameraParameters.supportedVideoSizes
         // Video sizes may be null, which indicates that all the supported
         // preview sizes are supported for video recording.

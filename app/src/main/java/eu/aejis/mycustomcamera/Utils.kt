@@ -20,6 +20,7 @@ import java.util.*
  * Created by Dima on 29.06.2017.
  */
 object Utils {
+    val TAG = "CameraUtils"
     val MEDIA_TYPE_IMAGE = 1
     val MEDIA_TYPE_VIDEO = 2
 
@@ -156,6 +157,8 @@ object Utils {
             getRatioDifference(previewSize, excludeBigPictureSizes.minBy { getRatioDifference(previewSize, it) })
         }.min()
 
+        Log.d(TAG, "bestR=" + bestR)
+
         val cameraSizeInfoList = excludeBigPreviewSizes.map { previewSize ->
             val bestPicSize = excludeBigPictureSizes.sortedBy { picSize ->
                 Math.abs(previewSize.height - picSize.height)
@@ -169,6 +172,7 @@ object Utils {
 
         //width / height intentionally - see below
         val targetRatio = w.toFloat() / h.toFloat()
+        Log.d(TAG, "targetRatio=" + targetRatio)
 
         fun getSizesWithTargetRatio(): List<Camera.Size> {
 
@@ -190,7 +194,9 @@ object Utils {
         val optimalPreviewSize: Camera.Size? = getSizesWithTargetRatio().minBy {
             getBigSideDifference(it, Point(w, h))
         }
+        Log.d(TAG, "optimalPreviewSize=" + optimalPreviewSize?.height + "x" + optimalPreviewSize?.width)
         val optimalPictureSize = cameraSizeInfoList.find { it.first == optimalPreviewSize }?.second ?: optimalPreviewSize
+        Log.d(TAG, "optimalPictureSize=" + optimalPictureSize?.height + "x" + optimalPictureSize?.width)
         return Pair(optimalPreviewSize, optimalPictureSize)
     }
 
@@ -236,5 +242,16 @@ object Utils {
             val list = arg.split("x")
             return Point(list.component1().toInt(), list.component2().toInt())
         } else return null /*throw IllegalArgumentException("arg of stringToPoint(arg: String) should be in format '\\d+x\\d+'")*/
+    }
+
+    fun booleanFromMediaStoreAction(mediaStoreAction: String?): Boolean = when (mediaStoreAction) {
+        MediaStore.ACTION_IMAGE_CAPTURE -> true
+        MediaStore.ACTION_VIDEO_CAPTURE -> false
+        else                            -> true
+    }
+
+    fun mediaStoreActionFromBoolean(actionImage: Boolean) = when (actionImage) {
+        true    -> MediaStore.ACTION_IMAGE_CAPTURE
+        false   -> MediaStore.ACTION_VIDEO_CAPTURE
     }
 }

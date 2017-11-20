@@ -3,7 +3,7 @@ apply plugin: 'kotlin-android'
 
 android {
     compileSdkVersion 25
-    buildToolsVersion "25.0.2"
+    //buildToolsVersion "25.0.2" - build tools version is selected automatically by the Gradle plugin
     defaultConfig {
         //applicationId "eu.aejis.mycustomcamera"
         minSdkVersion 16
@@ -26,14 +26,19 @@ dependencies {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre7:$kotlin_version"
-    compile 'com.android.support:appcompat-v7:25.3.1'
-    compile 'com.github.glomadrian:MaterialAnimatedSwitch:1.1@aar'
+    compile 'com.android.support:appcompat-v7:25.4.0'
+    //compile 'com.github.glomadrian:MaterialAnimatedSwitch:1.1@aar'
+    compile 'com.polyak:icon-switch:1.0.0'
     compile 'com.squareup.picasso:picasso:2.5.2'
     testCompile 'junit:junit:4.12'
 }
 repositories {
     mavenCentral()
-    maven {
+    /*maven {
         url "http://dl.bintray.com/glomadrian/maven"
+    }*/
+    maven {
+        url "https://jitpack.io"
     }
+    google()
 }

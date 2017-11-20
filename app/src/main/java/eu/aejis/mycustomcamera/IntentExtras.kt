@@ -10,7 +10,8 @@ object IntentExtras {
 
     //saved instance state key
     const val SHOWING_FILE = "SHOWING_FILE"
+    const val SWITCH_STATE = "SWITCH_STATE"
 
     //custom key for camera parameters
-    const val VIDEO_SIZE = "VIDEO SIZE"
+    const val VIDEO_SIZE = "video-size"
 }

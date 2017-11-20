@@ -14,7 +14,11 @@ interface CameraHost {
         mPreview?.requestLayout()
     }
 
-    fun setRecordButtonStatus(status: Boolean)
+    fun setUIStatus(status: Boolean)
+
+    fun onRotation(newRotation: Int)
+
+    fun setRecordButtonEnabled(status: Boolean)
 
     fun showResult(mediaFileName: String)
 

@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="horizontal"
     android:layout_width="fill_parent"
-    android:layout_height="fill_parent">
+    android:layout_height="fill_parent"
+    android:keepScreenOn="true">
 
     <ImageView
         android:layout_width="match_parent"
@@ -30,7 +31,7 @@
         android:background="@drawable/background_chronometer"
         android:visibility="gone"/>
 
-    <com.github.glomadrian.materialanimatedswitch.MaterialAnimatedSwitch
+    <!--<com.github.glomadrian.materialanimatedswitch.MaterialAnimatedSwitch
         android:id="@+id/switchPhotoVideo"
         android:layout_width="wrap_content"
         android:layout_height="20dp"
@@ -38,7 +39,16 @@
         android:layout_centerHorizontal="true"
         app:icon_release="@drawable/ic_photo_camera_white_24dp"
         app:icon_press="@drawable/ic_videocam_white_24dp"
-        app:ball_press_color="@color/colorAccent"/>
+        app:ball_press_color="@color/colorAccent"/>-->
+
+    <com.polyak.iconswitch.IconSwitch
+        android:id="@+id/switchPhotoVideo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        app:isw_icon_left="@drawable/ic_photo_camera_white_24dp"
+        app:isw_icon_right="@drawable/ic_videocam_white_24dp" />
 
     <ImageButton
         android:id="@+id/button_capture"
