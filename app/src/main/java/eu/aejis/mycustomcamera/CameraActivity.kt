@@ -17,8 +17,11 @@ import android.view.ViewGroup
 import android.widget.*
 //import com.github.glomadrian.materialanimatedswitch.MaterialAnimatedSwitch
 import com.polyak.iconswitch.IconSwitch
+import com.splunk.mint.Mint
 import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
+import org.jetbrains.anko.longToast
+import org.jetbrains.anko.toast
 
 open class CameraActivity : AppCompatActivity(), CameraHost {
     val TAG = "CameraActivity"
@@ -60,7 +63,7 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
 
         // Create an instance of Camera
         if (!Utils.checkCameraHardware(this)) {
-            Toast.makeText(this, "Camera problem!", Toast.LENGTH_LONG).show()
+            longToast(R.string.cameraError)
             finish()
         } else {
             // Create our Preview view and set it as the content of our activity.
@@ -88,7 +91,12 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
             else intent?.action
 
             val mediaPath: String? = intent?.data?.path
-            customCamera = CustomCamera(this, action, mediaPath)
+
+            try {
+                customCamera = CustomCamera(this, action, mediaPath)
+            } catch (e: Exception) {
+                closeAfterException(e)
+            }
 
             if (noSwitch) {
                 switchPhotoVideo?.visibility = View.GONE
@@ -174,9 +182,15 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
         }
     }
     private fun onResumeActions() {
-        customCamera?.onResumeActions()
-        mPreview?. let { v ->
-            if (v.visibility == View.GONE) v.visibility = View.VISIBLE
+        try {
+            //this can throw NPE
+            customCamera?.onResumeActions()
+
+            mPreview?. let { v ->
+                if (v.visibility == View.GONE) v.visibility = View.VISIBLE
+            }
+        } catch (e: Exception) {
+            closeAfterException(e)
         }
     }
 
@@ -299,12 +313,19 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
                 })
             }
         } else {
-            Toast.makeText(this, R.string.media_format_not_supported, Toast.LENGTH_LONG).show()
+            toast(R.string.media_format_not_supported)
             finish()
         }
     }
 
     override fun showError(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        toast(message)
+    }
+
+    private fun closeAfterException(e: Exception) {
+        Mint.logException("Intent", intent?.toString(), e)
+        customCamera?.releaseCamera()
+        toast(R.string.cameraError)
+        finish()
     }
 }

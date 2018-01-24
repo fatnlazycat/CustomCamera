@@ -5,4 +5,5 @@
     <string name="OK">OK</string>
     <string name="media_format_not_supported">Цей формат не підтримується</string>
     <string name="fileLimitReached">Досягнуто максимальний розмір файлу</string>
+    <string name="cameraError">Помилка камери</string>
 </resources>

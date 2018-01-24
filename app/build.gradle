@@ -30,6 +30,8 @@ dependencies {
     //compile 'com.github.glomadrian:MaterialAnimatedSwitch:1.1@aar'
     compile 'com.polyak:icon-switch:1.0.0'
     compile 'com.squareup.picasso:picasso:2.5.2'
+    compile "org.jetbrains.anko:anko-commons:$anko_version"
+    compile 'com.splunk.mint:mint:5.0.0'
     testCompile 'junit:junit:4.12'
 }
 repositories {
@@ -39,6 +41,9 @@ repositories {
     }*/
     maven {
         url "https://jitpack.io"
+    }
+    maven {
+        url "https://mint.splunk.com/gradle/"
     }
     google()
 }

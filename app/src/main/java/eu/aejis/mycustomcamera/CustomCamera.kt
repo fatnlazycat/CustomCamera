@@ -124,6 +124,10 @@ class CustomCamera (
         if (mCamera == null) {
             mCamera = Utils.getCameraInstance()
         }
+
+        //handle this exception in Activity to finish it
+        if (mCamera == null) throw NullPointerException("camera is null, can't init!")
+
         Log.d(TAG, "initCamera after, camera=" + mCamera)
     }
 
@@ -285,7 +289,9 @@ class CustomCamera (
 
     private fun prepareVideoRecorder(): Boolean {
         val camera = mCamera
-        if (mMediaRecorder == null) mMediaRecorder = MediaRecorder()
+
+        //no need to check if it's null, moreover - we don't need the old MediaRecorder, if any, because it can be in wrong state
+        /*if (mMediaRecorder == null)*/ mMediaRecorder = MediaRecorder()
         val mediaRecorder = mMediaRecorder
 
         if (camera == null || mediaRecorder == null) return false
@@ -358,12 +364,15 @@ class CustomCamera (
         mCamera?.startPreview()
     }
 
-    fun releaseAll() {
-        releaseMediaRecorder()
-
+    fun releaseCamera() {
         mCamera?.release()        // release the camera for other applications
         mCamera = null
         //cameraParameters = null
+    }
+
+    fun releaseAll() {
+        releaseMediaRecorder()
+        releaseCamera()
     }
 
 
@@ -508,9 +517,8 @@ class CustomCamera (
     override fun onInfo(mr: MediaRecorder?, what: Int, extra: Int) {
         when (what) {
             MediaRecorder.MEDIA_RECORDER_INFO_UNKNOWN ->
-                Toast.makeText(
-                        ctx.asActivity().applicationContext, "mediaRecorder info unknown=" + extra, Toast.LENGTH_LONG
-                ).show()
+                ctx.showError("mediaRecorder info unknown=" + extra)
+
             MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED,
             MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED -> {
                 Toast.makeText(
@@ -522,9 +530,8 @@ class CustomCamera (
     }
 
     override fun onError(mr: MediaRecorder?, what: Int, extra: Int) {
-        Toast.makeText(
-                ctx.asActivity().applicationContext, "mediaRecorder unknown error =" + extra, Toast.LENGTH_LONG
-        ).show()
+        ctx.showError("mediaRecorder unknown error =" + extra)
+        stopVideoRecording()
     }
 
 }
