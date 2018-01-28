@@ -61,6 +61,8 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_camera)
 
+        Mint.leaveBreadcrumb("CameraActivity onCreate")
+
         // Create an instance of Camera
         if (!Utils.checkCameraHardware(this)) {
             longToast(R.string.cameraError)
@@ -108,6 +110,7 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
             btnCapture?.setOnClickListener(customCamera?.getActionListener())
 
             btnOK?.setOnClickListener { _: View? ->
+                Mint.leaveBreadcrumb("btnOk clicked")
                 btnCancel?.isEnabled = false
                 btnOK?.isEnabled = false
                 val resultIntent = Intent()
@@ -132,6 +135,7 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
             }
 
             btnCancel?.setOnClickListener { _: View? ->
+                Mint.leaveBreadcrumb("btnCancel clicked")
                 btnCancel?.isEnabled = false
                 btnOK?.isEnabled = false
                 resetUI()
@@ -151,6 +155,7 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
 
             if (!noSwitch) switchPhotoVideo?.setCheckedChangeListener({
                 side ->
+                Mint.leaveBreadcrumb("switch clicked to " + side)
                 val flagVideo = (side == IconSwitch.Checked.RIGHT)
                 setCustomCameraAndActionListener(flagVideo)
             })
@@ -158,7 +163,10 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
             if (intent.hasExtra(IntentExtras.START_IMMEDIATELY) &&
                     !(savedInstanceState != null &&
                         savedInstanceState.containsKey(IntentExtras.START_IMMEDIATELY)))
-                btnCapture?.postDelayed({ btnCapture?.performClick() }, 600)
+                btnCapture?.postDelayed({
+                    try { btnCapture?.performClick() } //IllegalStateException in MediaRecorder.start
+                    catch (e: Exception) {closeAfterException(e)}
+                }, 600)
 
             showingFile = savedInstanceState?.getString(IntentExtras.SHOWING_FILE)
         }
@@ -173,6 +181,9 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
 
     override fun onResume() {
         super.onResume()
+
+        Mint.leaveBreadcrumb("CameraActivity onResume")
+
         isPaused = false
         val valShowingFile = showingFile
         if (valShowingFile == null) onResumeActions()
@@ -195,6 +206,8 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
     }
 
     override fun onPause() {
+        Mint.leaveBreadcrumb("CameraActivity onPause")
+
         isPaused = true
         /*record-during-incoming-call block -> comment out onPauseActions()*/
         onPauseActions()
@@ -207,12 +220,16 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
     }
 
     override fun onDestroy() {
+        Mint.leaveBreadcrumb("CameraActivity onDestroy")
+
         Log.d(TAG, "onDestroy")
         customCamera = null
         super.onDestroy()
     }
 
     override fun onSaveInstanceState(outState: Bundle?) {
+        Mint.leaveBreadcrumb("CameraActivity onSaveInstanceState")
+
         showingFile ?. let {outState?.putString(IntentExtras.SHOWING_FILE, showingFile)}
         switchPhotoVideo ?. let {
             if (!noSwitch)
@@ -323,7 +340,7 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
     }
 
     private fun closeAfterException(e: Exception) {
-        Mint.logException("Intent", intent?.toString(), e)
+        Mint.logException("CameraParameters", customCamera?.cameraParameters.toString(), e)
         customCamera?.releaseCamera()
         toast(R.string.cameraError)
         finish()

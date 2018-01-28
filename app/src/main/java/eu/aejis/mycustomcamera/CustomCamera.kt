@@ -11,6 +11,7 @@ import android.view.OrientationEventListener
 import android.view.SurfaceHolder
 import android.view.View
 import android.widget.Toast
+import com.splunk.mint.Mint
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
@@ -65,7 +66,7 @@ class CustomCamera (
             }
         }
 
-    private var cameraParameters: Camera.Parameters? = null
+    /*private*/ var cameraParameters: Camera.Parameters? = null
     private var mMediaRecorder: MediaRecorder? = null
     private var actionImage = true
     private var isRecording = false
@@ -221,6 +222,7 @@ class CustomCamera (
         this.actionImage = actionFlagImage
 
         val imageListener = View.OnClickListener { v: View ->
+            Mint.leaveBreadcrumb("btnCapture clicked to make image")
             Log.d(TAG, "imageListener entered, processingFile=" + processingFile)
             if (processingFile) return@OnClickListener
 
@@ -238,10 +240,15 @@ class CustomCamera (
         }
 
         val videoListener = View.OnClickListener {
+            Mint.leaveBreadcrumb("btnCapture clicked (processingFile=" + processingFile +
+                    ", isRecording=" + isRecording +
+                    ") to...")
             if (processingFile) return@OnClickListener
             if (isRecording) {
+                Mint.leaveBreadcrumb("... to stop video")
                 stopVideoRecording()
             } else {
+                Mint.leaveBreadcrumb("... to start video")
                 startVideoRecording()
             }
         }
@@ -378,6 +385,7 @@ class CustomCamera (
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         Log.d(TAG, "surfaceCreated")
+        Mint.leaveBreadcrumb("surfaceCreated, holder= $holder")
 
         // The Surface has been created, now tell the camera where to draw the preview.
         /*record-during-incoming-call block
@@ -394,11 +402,13 @@ class CustomCamera (
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         Log.d(TAG, "surfaceDestroyed")
+        Mint.leaveBreadcrumb("surfaceDestroyed, holder= $holder")
         // empty. Take care of releasing the Camera preview in your activity.
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         Log.d(TAG, "surfaceChanged")
+        Mint.leaveBreadcrumb("surfaceChanged, holder= $holder, width= $width, height= $height")
 
         // If your preview can change or rotate, take care of those events here.
         // Make sure to stop the preview before resizing or reformatting it.
