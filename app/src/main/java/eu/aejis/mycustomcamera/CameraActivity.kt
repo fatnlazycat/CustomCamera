@@ -64,7 +64,7 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
         Mint.leaveBreadcrumb("CameraActivity onCreate")
 
         // Create an instance of Camera
-        if (!Utils.checkCameraHardware(this)) {
+        if (!Utils.checkCamera(this)) {
             longToast(R.string.cameraError)
             finish()
         } else {

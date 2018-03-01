@@ -1,5 +1,6 @@
 package eu.aejis.mycustomcamera
 
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
@@ -8,6 +9,8 @@ import android.hardware.Camera
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
+import android.support.v4.app.ActivityCompat
+import android.support.v4.content.ContextCompat
 import android.util.Log
 import android.view.OrientationEventListener
 import android.view.Surface
@@ -54,8 +57,16 @@ object Utils {
     }
 
     /** Check if this device has a camera  */
-    fun checkCameraHardware(context: Context): Boolean {
-        return context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA)
+    fun checkCamera(context: Context): Boolean {
+        val checkPermissions: Boolean = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+            .all({ s ->
+                PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(context, s)
+            })
+
+        val checkHardware: Boolean =
+            context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA)
+
+        return checkPermissions && checkHardware
     }
 
     /** A safe way to get an instance of the Camera object.  */
