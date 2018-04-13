@@ -24,7 +24,7 @@ import java.io.IOException
 class CustomCamera (
         val ctx: CameraHost,
         action: String?,
-        val mediaPath: String?) : SurfaceHolder.Callback, SensorEventListener,
+        private val mediaPath: String?) : SurfaceHolder.Callback, SensorEventListener,
                                   MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener {
     private val TAG = "CustomCamera"
 
@@ -37,7 +37,7 @@ class CustomCamera (
     }
 
 
-    var mCamera: Camera? = null
+    private var mCamera: Camera? = null
         set(value) {
             field = value
             //val parametersString = cameraParameters?.flatten()
@@ -97,7 +97,7 @@ class CustomCamera (
     var sensorLastX: Float = 0.0F
     var sensorLastY: Float = 0.0F
     var sensorLastZ: Float = 0.0F
-    val sensorManager by lazy {
+    private val sensorManager by lazy {
         ctx.asActivity().getSystemService(Context.SENSOR_SERVICE) as SensorManager
     }
     private val sensor: Sensor by lazy {sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)}
@@ -121,7 +121,7 @@ class CustomCamera (
     }
 
     private fun initCamera() {
-        Log.d(TAG, "initCamera before, camera=" + mCamera)
+        Log.d(TAG, "initCamera before, camera=$mCamera")
         if (mCamera == null) {
             mCamera = Utils.getCameraInstance()
         }
@@ -129,7 +129,7 @@ class CustomCamera (
         //handle this exception in Activity to finish it
         if (mCamera == null) throw NullPointerException("camera is null, can't init!")
 
-        Log.d(TAG, "initCamera after, camera=" + mCamera)
+        Log.d(TAG, "initCamera after, camera=$mCamera")
     }
 
     private fun deleteMediaFile() {
@@ -141,6 +141,7 @@ class CustomCamera (
         lastCapturedFile?. let {
             if (it.exists() && it.length() > 0) {
                 Log.d(TAG, "missionComplete updating UI")
+                Mint.leaveBreadcrumb("missionComplete updating UI")
                 ctx.setUIStatus(false)
                 ctx.showResult(it.toString())
             }
@@ -208,7 +209,7 @@ class CustomCamera (
                 parameters.setRotation(mediaOrientation)
             }
         }
-        Log.d(TAG, "initMode, mode=" + modeVideo)
+        Log.d(TAG, "initMode, mode=$modeVideo")
         mCamera?.parameters = cameraParameters
 
         processingFile = false
@@ -223,7 +224,7 @@ class CustomCamera (
 
         val imageListener = View.OnClickListener { v: View ->
             Mint.leaveBreadcrumb("btnCapture clicked to make image")
-            Log.d(TAG, "imageListener entered, processingFile=" + processingFile)
+            Log.d(TAG, "imageListener entered, processingFile=$processingFile")
             if (processingFile) return@OnClickListener
 
             //ctx.setRecordButtonEnabled(false)
@@ -236,6 +237,7 @@ class CustomCamera (
 
             // get an image from the camera
             Log.d(TAG, "before takePicture")
+            Mint.leaveBreadcrumb("before takePicture")
             mCamera?.takePicture(null, null, pictureCallback)
         }
 
@@ -256,7 +258,7 @@ class CustomCamera (
         return if (actionImage) imageListener else videoListener
     }
 
-    fun getMediaFile(path: String?, mediaType: String): File? {
+    private fun getMediaFile(path: String?, mediaType: String): File? {
         if (path == null) return Utils.getMediaFile(ctx.asActivity(), mediaType)
         else {
             val fileExtension = when (mediaType) {
@@ -272,6 +274,7 @@ class CustomCamera (
 
     private val pictureCallback = PictureCallback { data, camera ->
         Log.d(TAG, "pictureCallback entered")
+        Mint.leaveBreadcrumb("pictureCallback entered")
         lastCapturedFile = getMediaFile(mediaPath, MediaStore.ACTION_IMAGE_CAPTURE)
         if (lastCapturedFile == null) {
             Log.d(TAG, "Error creating media file, check storage permissions")
@@ -292,6 +295,7 @@ class CustomCamera (
 
         missionComplete()
         Log.d(TAG, "pictureCallback exit")
+        Mint.leaveBreadcrumb("pictureCallback exit")
     }
 
     private fun prepareVideoRecorder(): Boolean {
@@ -307,7 +311,7 @@ class CustomCamera (
             mediaRecorder.setOnErrorListener(this)
 
             // Step 1: Unlock and set camera to MediaRecorder
-            Log.d(TAG, "prepareVideoRecorder, camera=" + camera)
+            Log.d(TAG, "prepareVideoRecorder, camera=$camera")
             camera.stopPreview()
             camera.unlock()
             mediaRecorder.setCamera(camera)
@@ -366,7 +370,8 @@ class CustomCamera (
         mMediaRecorder?.reset()   // clear recorder configuration
         mMediaRecorder?.release() // release the recorder object
         mMediaRecorder = null
-        Log.d(TAG, "releaseVideoRecorder, camera=" + mCamera)
+        Log.d(TAG, "releaseVideoRecorder, camera=$mCamera")
+        Mint.leaveBreadcrumb("releaseVideoRecorder, camera=$mCamera")
         mCamera?.lock()           // lock camera for later use
         mCamera?.startPreview()
     }
@@ -377,7 +382,7 @@ class CustomCamera (
         //cameraParameters = null
     }
 
-    fun releaseAll() {
+    private fun releaseAll() {
         releaseMediaRecorder()
         releaseCamera()
     }
@@ -527,7 +532,7 @@ class CustomCamera (
     override fun onInfo(mr: MediaRecorder?, what: Int, extra: Int) {
         when (what) {
             MediaRecorder.MEDIA_RECORDER_INFO_UNKNOWN ->
-                ctx.showError("mediaRecorder info unknown=" + extra)
+                ctx.showError("mediaRecorder info unknown=$extra")
 
             MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED,
             MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED -> {
@@ -540,7 +545,7 @@ class CustomCamera (
     }
 
     override fun onError(mr: MediaRecorder?, what: Int, extra: Int) {
-        ctx.showError("mediaRecorder unknown error =" + extra)
+        ctx.showError("mediaRecorder unknown error =$extra")
         stopVideoRecording()
     }
 

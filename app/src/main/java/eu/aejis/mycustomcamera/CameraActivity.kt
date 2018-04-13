@@ -31,8 +31,9 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
         builder.listener(object : Picasso.Listener {
             override fun onImageLoadFailed(picasso: Picasso, uri: Uri, exception: Exception) {
                 Log.d(TAG, exception.message)
+                Mint.leaveBreadcrumb(exception.toString())
 
-                val tvError = findViewById(R.id.tvError) as TextView
+                val tvError = findViewById<TextView>(R.id.tvError)
                 tvError.visibility = View.VISIBLE
                 tvError.text = exception.toString()
             }
@@ -75,17 +76,17 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
             layoutParams.gravity = Gravity.CENTER
             mPreview?.layoutParams = layoutParams
 
-            val preview = findViewById(R.id.camera_preview) as FrameLayout
+            val preview = findViewById<FrameLayout>(R.id.camera_preview)
             preview.addView(mPreview)
 
-            chronometer         = findViewById(R.id.chronometer)      as Chronometer
-            btnCapture          = findViewById(R.id.button_capture)   as ImageButton
+            chronometer         = findViewById(R.id.chronometer)
+            btnCapture          = findViewById(R.id.button_capture)
             //switchPhotoVideo    = findViewById(R.id.switchPhotoVideo) as MaterialAnimatedSwitch
-            switchPhotoVideo    = findViewById(R.id.switchPhotoVideo) as IconSwitch
-            btnOK               = findViewById(R.id.btnOK)            as Button
-            btnCancel           = findViewById(R.id.btnCancel)        as Button
-            ivResult            = findViewById(R.id.ivResult)         as ImageView
-            vvResult            = findViewById(R.id.vvResult)         as VideoView
+            switchPhotoVideo    = findViewById(R.id.switchPhotoVideo)
+            btnOK               = findViewById(R.id.btnOK)
+            btnCancel           = findViewById(R.id.btnCancel)
+            ivResult            = findViewById(R.id.ivResult)
+            vvResult            = findViewById(R.id.vvResult)
 
 
             val action: String? = if (savedInstanceState != null && savedInstanceState.containsKey(IntentExtras.SWITCH_STATE))
@@ -155,7 +156,7 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
 
             if (!noSwitch) switchPhotoVideo?.setCheckedChangeListener({
                 side ->
-                Mint.leaveBreadcrumb("switch clicked to " + side)
+                Mint.leaveBreadcrumb("switch clicked to $side")
                 val flagVideo = (side == IconSwitch.Checked.RIGHT)
                 setCustomCameraAndActionListener(flagVideo)
             })
@@ -207,14 +208,14 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
 
     override fun onPause() {
         Mint.leaveBreadcrumb("CameraActivity onPause")
-
+        Log.d(TAG, "onPause")
         isPaused = true
         /*record-during-incoming-call block -> comment out onPauseActions()*/
         onPauseActions()
         super.onPause()
     }
     private fun onPauseActions() {
-        Log.d(TAG, "onPause")
+        Mint.leaveBreadcrumb("CameraActivity onPauseActions")
         customCamera?.onPauseActions()
         mPreview?.visibility = View.GONE
     }
@@ -241,7 +242,7 @@ open class CameraActivity : AppCompatActivity(), CameraHost {
 
     override fun setUIStatus(status: Boolean) {
         switchPhotoVideo?.   visibility = View.GONE
-        Log.d(TAG, "set btnCapture, status=" + status)
+        Log.d(TAG, "set btnCapture, status=$status")
         if (status) { //recording - show "Stop"
             btnCapture?. let { with(it) {
                 animate().rotationBy(360F)
