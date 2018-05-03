@@ -26,10 +26,13 @@ dependencies {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation 'com.android.support:appcompat-v7:27.1.0'
+    implementation 'com.android.support:appcompat-v7:27.1.1'
+    implementation 'com.android.support:exifinterface:27.1.1' //needed for picasso to explicitly point at higher version
     //compile 'com.github.glomadrian:MaterialAnimatedSwitch:1.1@aar'
     implementation 'com.polyak:icon-switch:1.0.0'
-    implementation 'com.squareup.picasso:picasso:2.71828'
+    implementation ('com.squareup.picasso:picasso:2.71828') {
+        exclude group: 'com.android.support', module: 'exifinterface'
+    }
     implementation "org.jetbrains.anko:anko-commons:$anko_version"
     implementation 'com.splunk.mint:mint:5.0.0'
     testImplementation 'junit:junit:4.12'
