@@ -109,11 +109,7 @@ object Utils {
         return info
     }
 
-    fun getCameraOrientation(cameraId: Int): Int {
-        val info = android.hardware.Camera.CameraInfo()
-        android.hardware.Camera.getCameraInfo(cameraId, info)
-        return info.orientation
-    }
+    fun getCameraOrientation(cameraId: Int): Int = getCameraInfo(cameraId).orientation
 
     fun makeOrientationListener(ctx: Context, callback: (Int) -> Unit): OrientationEventListener {
         val orientationListener = object : OrientationEventListener(ctx) {

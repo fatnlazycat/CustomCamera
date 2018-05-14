@@ -118,6 +118,8 @@ class CustomCamera (
         }
 
         actionImage = Utils.booleanFromMediaStoreAction(action)
+
+        mediaOrientation = Utils.getCameraDisplayOrientation(ctx.asActivity(), DEFAULT_CAMERA_ID)
     }
 
     private fun initCamera() {
@@ -366,14 +368,18 @@ class CustomCamera (
         }
     }
 
-    private fun releaseMediaRecorder() {
+    private fun releaseMediaRecorder(startPreview: Boolean = true) {
         mMediaRecorder?.reset()   // clear recorder configuration
         mMediaRecorder?.release() // release the recorder object
         mMediaRecorder = null
-        Log.d(TAG, "releaseVideoRecorder, camera=$mCamera")
-        Mint.leaveBreadcrumb("releaseVideoRecorder, camera=$mCamera")
-        mCamera?.lock()           // lock camera for later use
-        mCamera?.startPreview()
+        Log.d(TAG, "releaseVideoRecorder, camera=$mCamera, startPreview=$startPreview")
+        Mint.leaveBreadcrumb("releaseVideoRecorder, camera=$mCamera, startPreview=$startPreview")
+        if (startPreview) { //to avoid crash if call we startPreview while taking picture
+                            //this happened when the activity went paused while camera.takePicture was working
+                            // (i.e. pictureCallback not called yet)
+            mCamera?.lock()           // lock camera for later use
+            mCamera?.startPreview()
+        }
     }
 
     fun releaseCamera() {
@@ -383,7 +389,7 @@ class CustomCamera (
     }
 
     private fun releaseAll() {
-        releaseMediaRecorder()
+        releaseMediaRecorder(false)
         releaseCamera()
     }
 
